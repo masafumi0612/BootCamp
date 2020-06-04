@@ -1,0 +1,96 @@
+\documentclass[12pt]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\textheight = 25truecm
+\textwidth = 18truecm
+\topmargin = -1.5truecm
+\oddsidemargin = -1truecm
+\evensidemargin = -1truecm
+\marginparwidth = -1truecm
+
+\def\theenumii{\Alph{enumii}}
+\def\theenumiii{\alph{enumiii}}
+\def\labelenumi{(\theenumi)}
+\def\labelenumiii{(\theenumiii)}
+\def\theenumiv{\roman{enumiv}}
+\def\labelenumiv{(\theenumiv)}
+\usepackage{comment}
+\usepackage{url}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% sty/ にある研究室独自のスタイルファイル
+\usepackage{jtygm}  % フォントに関する余計な警告を消す
+\usepackage{nutils} % insertfigure, figref, tabref マクロ
+
+\def\figdir{./figs} % 図のディレクトリ
+\def\figext{pdf}    % 図のファイルの拡張子
+
+
+
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 表題
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{center}
+{\LARGE SlackBotプログラムの仕様書}
+\end{center}
+
+\begin{flushright}
+  2020/6/2\\
+  野村 優文
+\end{flushright}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 概要
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{概要}
+\label{sec:introduction}
+本資料は，2020年度B4新人研修課題の1つで作成した，SlackBotプログラムの報告書である．
+本プログラムはチャットツールであるSlack\cite{Slack}を用いる．
+また，SlackBotは，ユーザがSlack上で投稿した特定の文章をきっかけとして，Slack上で自動的に返信する機能をもつ．
+本資料では，課題内容，理解できなかった部分，作成できなかった機能，自主的に作成した機能について記述する．
+
+\section{課題内容}\label{sec:content}
+課題内容はSlackBotプログラムを作成することである．
+具体的には以下の2つを行う．
+
+\begin{enumerate}
+\item\label{enum:make} 任意の文字列を返信するプログラムの作成
+
+  Slackでユーザが ``「○○○」と言って''と投稿したとき，SlackBotは ``○○○''と返信するプログラムを作成する．
+  
+\item\label{enum:add} SlackBotプログラムへの機能追加
+
+  Slack以外のWebサービスのAPIやWebhookを利用した機能を追加する．
+\end{enumerate}
+(\ref{enum:make})(\ref{enum:add})の課題のために作成したプログラムはRubyを利用し，バージョンは2.5.5である．
+また，作成したプログラムのコードは208行だった．
+
+\section{理解できなかった部分}
+
+
+
+\section{自主的に作成した機能}
+\ref{sec:content}章(\ref{enum:add})の課題のために，自主的に作成した機能を以下に記述する．
+\begin{enumerate}
+  \item Weather Hacks（気象データ配信サービス）\cite{WeatherHacks}を用いた天気予報の情報を投稿する機能
+
+  この機能は， Weather Hacks（気象データ配信サービス）を用いて天気予報の情報を通知する機能である．
+  ユーザは， ``@masabot (日にち)の(都道府県名)の天気''とSlack上に投稿した時，SlackBotは指定した日にちと都道府県の天気予報を返信する．
+  機能の詳細はSlackBotの仕様書に記載する．
+\end{enumerate}
+
+\section{作成できなかった機能}
+本課題で作成できなかった機能を以下に記述する．
+\begin{enumerate}
+\item 本プログラムが，SlackのOutgoing WebHook以外からPOSTリクエストを拒否する機能
+
+%\item 自主的に作成した機能において，``今日''， ``明日''， ``明後日''以外の(日にち)をユーザが入力した際，エラーを示す文字列をSlackBotが返信する機能
+  
+\end{enumerate}
+
+
+
+
+\bibliographystyle{ipsjunsrt}
+\bibliography{mybibdata}
+
+\end{document}
