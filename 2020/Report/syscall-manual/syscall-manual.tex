@@ -1,0 +1,413 @@
+\documentclass[12pt]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\textheight = 25truecm
+\textwidth = 18truecm
+\topmargin = -1.5truecm
+\oddsidemargin = -1truecm
+\evensidemargin = -1truecm
+\marginparwidth = -1truecm
+
+\def\theenumii{\Alph{enumii}}
+\def\theenumiii{\alph{enumiii}}
+\def\labelenumi{(\theenumi)}
+\def\labelenumiii{(\theenumiii)}
+\def\theenumiv{\roman{enumiv}}
+\def\labelenumiv{(\theenumiv)}
+\usepackage{comment}
+\usepackage{url}
+
+\usepackage{listings}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% sty/ にある研究室独自のスタイルファイル
+\usepackage{jtygm}  % フォントに関する余計な警告を消す
+\usepackage{nutils} % insertfigure, figref, tabref マクロ
+
+\def\figdir{./figs} % 図のディレクトリ
+\def\figext{pdf}    % 図のファイルの拡張子
+
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 表題
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{center}
+  {\LARGE Linuxカーネルへのシステムコール追加の手順書}
+\end{center}
+
+\begin{flushright}
+  2020/6/24\\
+  野村 優文
+\end{flushright}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 概要
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{はじめに}
+本手順書では，Linuxカーネルへのシステムコールの追加手順について記述する．
+本手順書で追加するシステムコールは，カーネルのメッセージバッファに指定した文字列を出力する機能をもつ．
+また，本手順書では，読者はコンソールの基本的な操作を習得していることを想定している．
+
+\section{実装環境}
+本システムコールの実装環境を表\ref{tab:2}に示す．
+
+\begin{table}[h]
+  \begin{center}
+    \caption{実装環境}\label{tab:2}
+%    \ecaption{Operating environment.}
+    \begin{tabular}{l|l}
+      \hline\hline
+      \multicolumn{1}{l|}{項目} & \multicolumn{1}{l}{内容}\\
+      \hline
+      OS & Debian GNU/Linux 10\\
+      カーネル & Linuxカーネル4.19.0\\
+      CPU & Intel(R) Core(TM) i7 860 CPU @ 2.90GHz\\
+      メモリ & 2.0GB\\
+      \hline
+    \end{tabular}
+  \end{center}
+\end{table}
+
+
+\section{システムコール追加の手順}
+\subsection{Linuxカーネルのソースコードの取得}
+Linuxカーネルのソースコードを取得する．
+このソースコードは，分散型バージョン管理システムであるGitで管理されている．
+以下に示すGitリポジトリから，Linuxカーネルのソースコードをクローンする．
+\begin{verbatim}
+git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+\end{verbatim}
+リポジトリとはディレクトリを保存する場所であり，クローンとはリポジトリの内容を指定したディレクトリに複製することである．
+本手順書では，\verb|/home/masafumi/git|以下でソースコードを管理する．
+\verb|/home/masafumi|で以下のコマンドを実行する．
+\begin{verbatim}
+$ mkdir git
+$ cd git
+$ git clone git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+\end{verbatim}
+上記のコマンドを実行すると，\verb|mkdir|コマンドで\verb|/home/masafumi|に\verb|git|ディレクトリが生成され，\verb|cd|コマンドで\verb|git|ディレクトリに移動する．
+また，\verb|git clone|コマンドで\verb|/home/masafumi/git|以下に\verb|linux-stable|ディレクトリが作成される．
+この\verb|linux-stable|ディレクトリ以下に，Linuxカーネルのソースコードが格納されている．
+
+\subsection{ブランチの切り替え}
+Linuxカーネルのバージョンを切り替えるため，ブランチの作成と切り替えを行う．
+ここで，ブランチとは開発の履歴を管理するための分岐である．
+\verb|/home/masafumi/git/linux-stable|で以下のコマンドを実行する．
+\begin{verbatim}
+$ git checkout -b 4.19 v4.19
+\end{verbatim}
+上記のコマンドを実行すると，v4.19というタグが示すコミットからブランチ4.19が生成され，ブランチ4.19に切り替わる．
+コミットとは，ある時点における開発の状態を記録したものである．
+また，タグとはコミットを識別するために付ける印である．
+
+\subsection{ソースコードの編集}\label{subsec:edit_sourcecode}
+以下の手順でソースコードを編集する．
+本手順書では，既存のファイルを編集する際，書き加えたソースコードの行の左端には\verb|+|を付けている．
+%また，削除するソースコードの行の左端には\verb|-|を付けている．
+\begin{enumerate}
+  \item 自作のシステムコール関数の追加
+
+\verb|/home/masafumi/git/linux-stable/kernel|にある\verb|sys.c|に，システムコール関数を記述する．
+この関数は，カーネルのメッセージバッファに指定した文字列を出力する機能をもつ．
+表\ref{tab:3}に作成したシステムコール関数の概要を記述する．
+なお，追加したシステムコール関数のソースコードを\ref{sec:optionA}に示す．
+\begin{table}[h]
+  \begin{center}
+    \caption{追加したシステムコール関数の概要}\label{tab:3}
+%    \ecaption{Operating environment.}
+    \begin{tabular}{l|l}
+      \hline\hline
+      \multicolumn{1}{l|}{項目} & \multicolumn{1}{l}{内容}\\
+      \hline
+      形式 & \verb|SYSCALL_DEFINE1(original_syscall, char __user * msg)|\\
+      引数 & \verb|char __user * msg:| 指定した文字列の先頭アドレス\\
+      戻り値 & 0\\
+      機能 & カーネルのメッセージバッファに指定した文字列を出力する．\\
+      \hline
+    \end{tabular}
+  \end{center}
+\end{table}
+
+
+\item\label{enum:add_syscall_number} システムコール番号の追加
+
+  \verb|/home/masafumi/git/linux-stable/arch/x86/entry/syscalls|にある\verb|syscall_64.tbl|を編集して，追加したシステムコール関数のシステムコール番号を書き加える．
+  システムコール番号を追加する際は，既存のシステムコール番号と重複しないようにする．
+  本手順書では，新たに追加したシステムコール関数のシステムコール番号を335とした．
+  このシステムコール番号は，\ref{sec:test}章(\ref{enum:make_test_program})において，追加したシステムコール関数のテストプログラムを作成する際に必要なので控えておく．
+  \verb|syscall_64.tbl|を以下のように書き加える．
+\begin{verbatim}
+  343 333     common  io_pgetevents         __64_sys_io_pgetevents
+  344 334     common  rseq                  __x64_sys_rseq
++ 345 335     common  original_syscall      __x64_sys_original_syscall
+\end{verbatim}
+このソースコードを入力する際，各列の間はスペースではなくタブを用いて入力する．
+
+\item システムコール関数のプロトタイプ宣言の追加
+  
+  \verb|/home/masafumi/git/linux-stable/include/linux|にある\verb|syscalls.h|を以下のように書き加える．
+\begin{verbatim}
+  1421	long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+  1422				    unsigned int nsops,
+  1423				    const struct old_timespec32 __user *timeout);
+  1424	
+  1425	#endif
++ 1426 asmlinkage long sys_original_syscall( char __user *msg );
+\end{verbatim}
+
+\end{enumerate}
+
+\subsection{Linuxカーネルの再構築}
+Linuxカーネルの再構築を以下の手順で行う．
+\begin{enumerate}
+\item .configファイルの生成
+
+  .configファイルを生成する．
+  ここで，.configファイルとはカーネルの設定を記述したコンフィギュレーションファイルである．
+  \verb|/home/masafumi/git/linux-stable|で以下のコマンドを実行する．
+\begin{verbatim}
+$ make defconfig
+\end{verbatim}
+上記のコマンドを実行すると，\verb|/home/masafumi/git/linux-stable|以下に.configファイルが生成される．
+
+\item\label{enum:compile} Linuxカーネルのコンパイル
+
+  \verb|/home/masafumi/git/linux-stable|で以下のコマンドを用いて，Linuxカーネルをコンパイルする．
+\begin{verbatim}
+$ make bzImage -j8
+\end{verbatim}
+
+\item コンパイルしたLinuxカーネルのインストール
+  
+  コンパイルしたLinuxカーネルをインストールする．
+  \verb|/home/masafumi/git/linux-stable|で以下のコマンドを実行する．
+\begin{verbatim}
+$ sudo cp arch/x86/boot/bzImage /boot/vmlinuz-4.19.0-linux
+$ sudo cp System.map /boot/System.map-4.19.0-linux
+\end{verbatim}
+上記のコマンドを実行すると，\verb|bzImage|と\verb|System.map|が，\verb|/boot|以下にそれぞれ\verb|vmlinuz-4.19.0-linux|と\verb|System.map-4.19.0-linux|という名前でコピーされる．
+
+\item\label{enum:module:module_compile} カーネルモジュールのコンパイル
+
+  カーネルモジュールをコンパイルする．
+  カーネルモジュールとは機能を拡張するためのバイナリファイルである．
+  \verb|/home/masafumi/git/linux-stable|で以下のコマンドを実行する．
+\begin{verbatim}
+$ make modules
+\end{verbatim}
+上記のコマンドを実行すると，カーネルモジュールをコンパイルできる．
+
+\item\label{enum:module_install} カーネルモジュールのインストール
+
+  コンパイルしたカーネルモジュールをインストールする．\\
+  \verb|/home/masafumi/git/linux-stable|で以下のコマンドを実行する．
+\begin{verbatim}
+$ sudo make modules_install
+\end{verbatim}
+上記のコマンドを実行すると，カーネルモジュールをインストールできる．
+また，実行結果の最終行には，カーネルモジュールをインストールしたディレクトリ名が表示される．
+以下にこの例を示す．
+\begin{verbatim}
+DEPMOD 4.19.0
+\end{verbatim}
+上記の例では，\verb|/lib/modules/4.19.0|ディレクトリにカーネルモジュールがインストールされていることを示している．
+このディレクトリ名は(\ref{enum:make_disc})で必要となるため，控えておく．
+
+\item\label{enum:make_disc} 初期RAMディスクの作成
+
+  初期RAMディスクを作成する．
+  初期RAMディスクとは，初期ルートファイルシステムのことである．
+  このディスクは，実際のルートファイルシステムが使用できるようになる前にマウントされる．
+  \verb|/home/masafumi/git/linux-stable|で以下のコマンドを実行する．
+\begin{verbatim}
+$ sudo update-initramfs -c -k 4.19.0
+\end{verbatim}
+上記のコマンドでは，(\ref{enum:module_install})で控えておいたディレクトリ名をコマンドの引数として与える．
+このコマンドを実行すると，\verb|/boot|以下に初期RAM ディスクの\verb|initrd.img-4.19.0|が作成される．
+
+\item\label{enum:bootloader} ブートローダの設定
+
+  システムコールを実装したLinuxカーネルをブートローダから起動可能にするために，ブートローダを設定する．
+  ブートローダの設定ファイルは\verb|/boot/grub|にある\verb|grub.cfg|である．
+  エントリを追加するためには，このファイルを編集する必要がある．
+  Debian10.3 で使用されているブートローダはGRUB2 である．
+%%%%%%%%%Debian10.3であるかは確認する必要がある．
+  GRUB2 でカーネルのエントリを追加する際は，設定ファイルを直接編集しない．
+  このため，\verb|/etc/grub.d|以下にエントリ追加用のスクリプトを作成し，そのスクリプトを実行することでエントリを追加する．
+  ブートローダを設定する手順を以下に記述する．
+
+  \begin{enumerate}
+  \item エントリ追加用のスクリプトの生成
+
+    Linuxカーネルのエントリを追加するため，エントリ追加用のスクリプトを作成する．
+    本手順書では，既存のファイル名に倣い，作成するスクリプトのファイル名は\verb|11_linux-4.19.0|とする．
+    スクリプトの記述例を以下に示す．
+
+\begin{verbatim}
+1 #!/bin/sh -e
+2 echo "Adding my custom Linux to GRUB2"
+3 cat << EOF
+4 menuentry "My custom Linux" {
+5 set root=(hd0,1)
+6 linux /vmlinuz-4.19.0-linux ro root=/dev/sda3 quiet
+7 initrd /initrd.img-4.19.0
+8 }
+9 EOF
+\end{verbatim}
+スクリプトに記述された各項目について以下に示す．
+
+\begin{enumerate}
+\item menuentry $<$表示名$>$
+
+  $<$表示名$>$: カーネル選択画面に表示される名前
+  
+\item set root=($<$HDD番号$>$，$<$パーティション番号$>$)
+
+  $<$HDD番号$>$: Linuxカーネルが保存されているHDDの番号
+  
+  $<$パーディション番号$>$: HDDの\verb|/boot|が割り当てられたパーティション番号
+  
+\item linux $<$カーネルのイメージファイル名$>$
+
+  $<$カーネルのイメージファイル名$>$: 起動するLinuxカーネルのカーネルイメージ
+  
+\item ro $<$rootデバイス$>$
+
+  $<$rootデバイス$>$: 起動時に読み込み専用でマウントするデバイス
+
+\item root=$<$ルートファイルシステム$>$ $<$その他のブートオプション$>$
+
+  $<$ルートファイルシステム$>$: \verb|/root|を割り当てたパーテション
+
+  $<$その他のブートオプション$>$: quietはカーネルの起動時に出力するメッセージを省略する．
+
+\item initrd $<$初期RAMディスク名$>$
+
+  $<$初期RAMディスク名$>$: 起動時にマウントする初期RAMディスク名
+  
+\end{enumerate}
+
+\item 実行権限の付与
+
+  作成したスクリプトに実行権限を付与する．
+  \verb|/etc/grub.d|で以下のコマンドを実行する．
+\begin{verbatim}
+$ sudo chmod +x 11_linux-4.19.0
+\end{verbatim}
+上記のコマンドを実行すると，作成したスクリプトに実行権限が付与される．
+
+\item エントリ追加用のスクリプトの実行
+
+  \verb|/etc/grub.d|で以下のコマンドを実行し，作成したスクリプトを実行する．
+\begin{verbatim}
+$ sudo update-grub
+\end{verbatim}
+  上記のコマンドを実行することにより，\verb|/boot/grub/grub.cfg|にシステムコールを実装したカーネルのエントリが追加される．
+
+\end{enumerate}
+
+\item 再起動
+
+  以下のコマンドを実行し，計算機を再起動させる．
+\begin{verbatim}
+$ sudo reboot
+\end{verbatim}
+再起動した後，GRUB2のカーネル選択画面にエントリが追加されている．
+(\ref{enum:bootloader})のスクリプトを用いた場合， ``My Custom Linux''という名前のエントリが追加される．
+このエントリを選択し，起動する．
+
+\end{enumerate}
+
+\section{追加したシステムコールのテスト}\label{sec:test}
+Linuxカーネルのメッセージバッファに指定した文字列を出力するシステムコール関数が追加できているか，実際に実行してテストする．
+テストの手順を以下に記述する．
+
+\begin{enumerate}
+  \item\label{enum:make_test_program} テストプログラムの作成
+
+    システムコールを実行するためのテストプログラムを作成する．
+    本手順書では，テストプログラムのファイル名は\verb|call_original_syscall.c|とする．
+    このテストプログラムは，\ref{subsec:edit_sourcecode}節(\ref{enum:add_syscall_number})で追加したシステムコール番号と，指定した文字列を引数に与えて，\verb|syscall|命令を呼び出す．
+    なお，作成したテストプログラムを\ref{sec:optionB}に示す．
+    
+  \item テストプログラムのコンパイル
+
+    作成したテストプログラムを以下のコマンドを実行し，コンパイルする．
+
+\begin{verbatim}
+$ gcc -o call_original_syscall call_original_syscall.c
+\end{verbatim}
+上記のコマンドを実行することにより，\verb|call_original_syscall.c|が実行され，実行ファイルである\verb|call_original_syscall|が生成される．
+
+\item\label{enum:jikkou} テストプログラムの実行
+
+  テストプログラムを実行する．
+  \verb|call_original_syscall|を以下のコマンドで実行する．
+\begin{verbatim}
+$ ./call_original_syscall Hello!
+\end{verbatim}
+上記のコマンドの第2引数には，Linuxカーネルのメッセージバッファに出力させる文字列を入力する．
+本手順書では例として，第2引数に\verb|Hello!|を入力している．
+また，\verb|call_original_syscall|を起動し，追加したシステムコール関数を呼び出したとき，以下の文字列を出力する．
+\begin{verbatim}
+Outputted
+\end{verbatim}
+追加したシステムコール関数を呼び出すことができなかったとき，以下の文字列を出力する．
+\begin{verbatim}
+Error : -1
+\end{verbatim}
+
+\item Linuxカーネルのメッセージバッファの内容を確認
+
+  以下のコマンドを実行し，Linuxカーネルのメッセージバッファを確認する．
+\begin{verbatim}
+$ dmesg
+\end{verbatim}
+上記のコマンドを実行したとき，追加したシステムコール関数が呼び出されていれば，以下のような結果を出力する．
+\begin{verbatim}
+[  122.938506] <ORIGINAL_SYSCALL>: Hello!
+\end{verbatim}
+上記の結果より，(\ref{enum:jikkou})に示すコマンドの第2引数で指定した文字列である\verb|Hello!|が，Linuxカーネルのメッセージバッファに出力されていることを示している．
+%最終行に上記の文章が出力される．
+なお，\verb|[]|内に示される番号はLinuxカーネル起動開始時からの経過時間を表している．
+
+\end{enumerate}
+
+\section{おわりに}
+本手順書では，Linuxカーネルのメッセージバッファに，指定した文字列を出力するシステムコールの追加手順を示した．
+また，このシステムコールが追加できているかどうかを確認する手法を示した．
+
+\appendix
+\section{追加したシステムコール関数(sys.c)}\label{sec:optionA}
+
+\begin{verbatim}
+152	SYSCALL_DEFINE1(original_syscall, char __user *, msg)
+153	{
+154	   printk(KERN_INFO "<ORIGINAL_SYSCALL>: %s\n", msg);
+155	   return 0;
+156	}
+\end{verbatim}
+
+\section{テストプログラム(call\_original\_syscall.c)}\label{sec:optionB}
+
+\begin{verbatim}
+ 1	#include<stdio.h>
+ 2	#include<unistd.h>
+ 3	#include<sys/syscall.h>
+ 4	#define SYS_original_syscall 335
+ 5	int main(int argc, char *argv[])
+ 6	{
+ 7	   long ret;
+ 8	   ret = syscall(SYS_original_syscall, argv[1], sizeof(argv[1]));
+ 9	   if(ret < 0){
+10	      fprintf(stderr, "Error : %ld\n", ret);
+11	   }else{
+12	      printf("Outputted\n");
+13	   }
+14	   return 0;
+15	}
+\end{verbatim}
+
+
+%\bibliographystyle{ipsjunsrt}
+%\bibliography{mybibdata}
+
+\end{document}
