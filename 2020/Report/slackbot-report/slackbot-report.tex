@@ -31,11 +31,11 @@
 %% 表題
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{center}
-{\LARGE SlackBotプログラムの仕様書}
+{\LARGE SlackBotプログラムの報告書}
 \end{center}
 
 \begin{flushright}
-  2020/6/2\\
+  2020/6/24\\
   野村 優文
 \end{flushright}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -65,18 +65,20 @@
 また，作成したプログラムのコードは208行だった．
 
 \section{理解できなかった部分}
-
-
-
-\section{自主的に作成した機能}
-\ref{sec:content}章(\ref{enum:add})の課題のために，自主的に作成した機能を以下に記述する．
+%現時点で理解できなかった部分はな
+理解できなかった部分を以下に記述する．
 \begin{enumerate}
-  \item Weather Hacks（気象データ配信サービス）\cite{WeatherHacks}を用いた天気予報の情報を投稿する機能
+\item 本プログラムをHerokuにデプロイする際，本プログラム，%Rubyのライブラリを指定するため，
+  \verb|Gemfile|，および\verb|Gemfile.lock|が必要だった．
+  ここで，\verb|Gemfile|および\verb|Gemfile.lock|は，Rubyプログラムを実行するために必要なgemを指定するファイルである．
+  このため，Herokuへのデプロイの際，Gemを指定するファイルは，\verb|Gemfile|もしくは\verb|Gemfile.lock|のいずれか1つでも問題ないと考えた．
+  しかし，この場合だと\verb|Gemfile|もしくは\verb|Gemfile.lock|が足りないというエラーが発生する．
+  デプロイする際に，なぜ\verb|Gemfile|および\verb|Gemfile.lock|のどちらも必要なのかがわからなかった．
+  
+%  ここで，\verb|Gemfile.lock|は\verb|Gemfile|があるディレクトリで\verb|bundle install|コマンドを使用することで生成される．
 
-  この機能は， Weather Hacks（気象データ配信サービス）を用いて天気予報の情報を通知する機能である．
-  ユーザは， ``@masabot (日にち)の(都道府県名)の天気''とSlack上に投稿した時，SlackBotは指定した日にちと都道府県の天気予報を返信する．
-  機能の詳細はSlackBotの仕様書に記載する．
 \end{enumerate}
+
 
 \section{作成できなかった機能}
 本課題で作成できなかった機能を以下に記述する．
@@ -87,7 +89,15 @@
   
 \end{enumerate}
 
+\section{自主的に作成した機能}
+\ref{sec:content}章(\ref{enum:add})の課題のために，自主的に作成した機能を以下に記述する．
+\begin{enumerate}
+  \item 天気予報の情報を返信する機能
 
+    この機能は，天気予報の情報を返信する機能である．
+    ユーザが， ``@masabot (日にち)の(都道府県名)の天気''とSlack上に投稿したとき，SlackBotは指定した日にちと都道府県の天気予報を返信する．
+    機能の詳細はSlackBotの仕様書に記載する．
+\end{enumerate}
 
 
 \bibliographystyle{ipsjunsrt}
