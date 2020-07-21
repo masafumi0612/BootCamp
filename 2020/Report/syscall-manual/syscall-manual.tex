@@ -35,12 +35,13 @@
 \end{center}
 
 \begin{flushright}
-  2020/6/24\\
+  2020/7/21\\
   野村 優文
 \end{flushright}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 概要
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{はじめに}
 本手順書では，Linuxカーネルへのシステムコールの追加手順について記述する．
 本手順書で追加するシステムコールは，カーネルのメッセージバッファに指定した文字列を出力する機能をもつ．
@@ -117,9 +118,13 @@ $ git checkout -b 4.19 v4.19
       \hline\hline
       \multicolumn{1}{l|}{項目} & \multicolumn{1}{l}{内容}\\
       \hline
-      形式 & \verb|SYSCALL_DEFINE1(original_syscall, char __user * msg)|\\
-      引数 & \verb|char __user * msg:| 指定した文字列の先頭アドレス\\
-      戻り値 & 0\\
+      形式 & \verb|SYSCALL_DEFINE1(original_syscall, char * msg, long count)|\\
+      引数 & \verb|char * msg|: 指定した文字列の先頭アドレス\\
+          & \verb|long count|: 指定した文字列の文字数+1(\verb|'\0'|を含むため) \\
+      戻り値 & 指定した文字列をカーネルのメッセージバッファに出力したとき: 0\\
+      & \verb|count|の値が0以下のとき: 1\\
+      & 指定した文字列がカーネル空間のメモリに格納されているとき: 2 \\
+      & 指定した文字列の文字数と\verb|count|が一致しないとき: 3 \\
       機能 & カーネルのメッセージバッファに指定した文字列を出力する．\\
       \hline
     \end{tabular}
@@ -141,17 +146,9 @@ $ git checkout -b 4.19 v4.19
 \end{verbatim}
 このソースコードを入力する際，各列の間はスペースではなくタブを用いて入力する．
 
-\item システムコール関数のプロトタイプ宣言の追加
+%\item システムコール関数のプロトタイプ宣言の追加
   
-  \verb|/home/masafumi/git/linux-stable/include/linux|にある\verb|syscalls.h|を以下のように書き加える．
-\begin{verbatim}
-  1421	long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
-  1422				    unsigned int nsops,
-  1423				    const struct old_timespec32 __user *timeout);
-  1424	
-  1425	#endif
-+ 1426 asmlinkage long sys_original_syscall( char __user *msg );
-\end{verbatim}
+
 
 \end{enumerate}
 
@@ -325,7 +322,7 @@ Linuxカーネルのメッセージバッファに指定した文字列を出力
 
     システムコールを実行するためのテストプログラムを作成する．
     本手順書では，テストプログラムのファイル名は\verb|call_original_syscall.c|とする．
-    このテストプログラムは，\ref{subsec:edit_sourcecode}節(\ref{enum:add_syscall_number})で追加したシステムコール番号と，指定した文字列を引数に与えて，\verb|syscall|命令を呼び出す．
+    このテストプログラムは，\ref{subsec:edit_sourcecode}節(\ref{enum:add_syscall_number})で追加したシステムコール番号，指定した文字列，および指定した文字列の文字数を引数に与えて，\verb|syscall|命令を呼び出す．
     なお，作成したテストプログラムを\ref{sec:optionB}に示す．
     
   \item テストプログラムのコンパイル
@@ -342,20 +339,21 @@ $ gcc -o call_original_syscall call_original_syscall.c
   テストプログラムを実行する．
   \verb|call_original_syscall|を以下のコマンドで実行する．
 \begin{verbatim}
-$ ./call_original_syscall Hello!
+$ ./call_original_syscall "Hello World"
 \end{verbatim}
-上記のコマンドの第2引数には，Linuxカーネルのメッセージバッファに出力させる文字列を入力する．
-本手順書では例として，第2引数に\verb|Hello!|を入力している．
-また，\verb|call_original_syscall|を起動し，追加したシステムコール関数を呼び出したとき，以下の文字列を出力する．
-\begin{verbatim}
-Outputted
-\end{verbatim}
-追加したシステムコール関数を呼び出すことができなかったとき，以下の文字列を出力する．
-\begin{verbatim}
-Error : -1
-\end{verbatim}
+上記のコマンドの第2引数には，Linuxカーネルのメッセージバッファに出力させる文字列を``''で括って入力する．
+本手順書では例として，第2引数に\verb|"Hello World"|と入力している．
+このため，Linuxカーネルのメッセージバッファに出力させる文字列は，\verb|Hello World|となる．
+%また，\verb|call_original_syscall|を起動し，追加したシステムコール関数を呼び出したとき，以下の文字列を出力する．
+%\begin{verbatim}
+%Outputted
+%\end{verbatim}
+%追加したシステムコール関数を呼び出すことができなかったとき，以下の文字列を出力する．
+%\begin{verbatim}
+%Error : -1
+%\end{verbatim}
 
-\item Linuxカーネルのメッセージバッファの内容を確認
+\item\label{enum:check} Linuxカーネルのメッセージバッファの内容を確認
 
   以下のコマンドを実行し，Linuxカーネルのメッセージバッファを確認する．
 \begin{verbatim}
@@ -363,9 +361,9 @@ $ dmesg
 \end{verbatim}
 上記のコマンドを実行したとき，追加したシステムコール関数が呼び出されていれば，以下のような結果を出力する．
 \begin{verbatim}
-[  122.938506] <ORIGINAL_SYSCALL>: Hello!
+[  122.938506] <ORIGINAL_SYSCALL>: Hello World
 \end{verbatim}
-上記の結果より，(\ref{enum:jikkou})に示すコマンドの第2引数で指定した文字列である\verb|Hello!|が，Linuxカーネルのメッセージバッファに出力されていることを示している．
+上記の結果より，(\ref{enum:jikkou})に示すコマンドの第2引数で指定した文字列である\verb|Hello World|が，Linuxカーネルのメッセージバッファに出力されていることを示している．
 %最終行に上記の文章が出力される．
 なお，\verb|[]|内に示される番号はLinuxカーネル起動開始時からの経過時間を表している．
 
@@ -379,35 +377,73 @@ $ dmesg
 \section{追加したシステムコール関数(sys.c)}\label{sec:optionA}
 
 \begin{verbatim}
-152	SYSCALL_DEFINE1(original_syscall, char __user *, msg)
+152	SYSCALL_DEFINE2(original_syscall, char *, msg, long, count)
 153	{
-154	   printk(KERN_INFO "<ORIGINAL_SYSCALL>: %s\n", msg);
-155	   return 0;
-156	}
+154	  char *buf;
+155	  long copied_len;
+156	  long ret;
+157	  if(count < 1){
+158	    printk(KERN_INFO "Count error\n");
+159	    return 1;
+160	  }
+161	  ret = access_ok(VERIFY_READ, msg, count);
+162	  if(ret != 1){
+163	    printk(KERN_INFO "Can't read : [%p]", msg);
+164	    return 2;
+165	  }
+166	  buf = (char)*kmalloc(count, GFP_KERNEL);
+167	  copied_len = strncpy_from_user(buf, msg, count);
+168	  if(copied_len+1 != count){
+169	    printk(KERN_INFO
+170		   "Message length is not match copied_len+1: '%ld' count: 'ld",
+171		   copied_len+1, count);
+172	    return 3;
+173	  }
+174	  printk(KERN_INFO "<ORIGINAL_SYSCALL>: %s\n", buf);
+175	  kfree(buf);
+176	  return 0;
+177	}
 \end{verbatim}
 
 \section{テストプログラム(call\_original\_syscall.c)}\label{sec:optionB}
 
 \begin{verbatim}
- 1	#include<stdio.h>
- 2	#include<unistd.h>
- 3	#include<sys/syscall.h>
- 4	#define SYS_original_syscall 335
- 5	int main(int argc, char *argv[])
- 6	{
- 7	   long ret;
- 8	   ret = syscall(SYS_original_syscall, argv[1], sizeof(argv[1]));
- 9	   if(ret < 0){
-10	      fprintf(stderr, "Error : %ld\n", ret);
-11	   }else{
-12	      printf("Outputted\n");
-13	   }
-14	   return 0;
-15	}
+1	#include <unistd.h>
+2	#include <stdio.h>
+3	#include <string.h>
+4	
+5	#define SYS_original_syscall 335
+6	
+7	int main(int argc, char **argv)
+8	{
+9	  long res;
+10	  if(argc <= 1){
+11	    printf("Error:-1 Must provide a string to give to system call\n.");
+12	    return -1;
+13	  }else if(argc >= 3){
+14	    printf("Error:-2 Too many arguments.\n");
+15	    return -2;
+16	  }
+17	  res = syscall(SYS_original_syscall, argv[1], strlen(argv[1])+1);
+18	  if(res == 0){
+19	    printf("Making system call with '%s'.\n", argv[1]);
+20	  }else{
+21	    printf("Error: System call returned %ld.\n", res);
+22	  }
+23	  return res;
+24	}
 \end{verbatim}
 
 
-%\bibliographystyle{ipsjunsrt}
-%\bibliography{mybibdata}
+\bibliographystyle{ipsjunsrt}
+%\bibliography{mybibdata} 
+\begin{thebibliography}{1}
+
+\bibitem{syscall_from0}
+Petipa, N.: 0から作るLinuxプログラム システムコール，Nina
+  Petipa（オンライン），\urlj{http://softwaretechnique.jp/Linux/SystemCall/index.html}
+  \refdatej{2020-07-01}.
+
+\end{thebibliography}
 
 \end{document}
